@@ -52,42 +52,96 @@ inv_s_box = (
     0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D,
 )
 
-
 def sub_bytes(s):
+    """
+    The code uses the AES substitution box, denoted as s_box, for bit substitution.
+    It means that for each bit in an input value, the corresponding substitute
+    value is found by using the bit's position as a coordinate.
+
+    O código usa o caixa de substituiçõa AES, nomeado como s_box, para substituição
+    de bits. Isso significa que para cada bit de entrada, o valor substituto 
+    correspondente é encontrado usando a posição do bit como coordenada.
+
+    https://en.wikipedia.org/wiki/Rijndael_S-box
+    """
     for i in range(4):
         for j in range(4):
             s[i][j] = s_box[s[i][j]]
 
 
 def inv_sub_bytes(s):
+    """
+    The code utilizes the inverse AES substitution box, inv_s_box, for bit-level
+    substitution in the reverse operation. Similar to the regular `s_box`, the 
+    `inv_s_box` is employed for bit substitution.
+
+    O código utiliza a caixa de substituição inversa do AES, inv_s_box, para uma
+    troca em nivel de bit em operação reversa. Similar a `s_box` regular, a
+    `inv_s_box` é implementada para substituição de bits.
+
+    https://en.wikipedia.org/wiki/Rijndael_S-box#Inverse_S-box
+    """
     for i in range(4):
         for j in range(4):
             s[i][j] = inv_s_box[s[i][j]]
 
 
 def shift_rows(s):
+    """ Does a transposition where the last three lines are 
+    moved one, two or three columns to the left.
+
+    Faz uma transposição onde as últimas três linhas são movidas uma, duas
+    ou três colunas para a esquerda.
+     
+    https://en.wikipedia.org/wiki/Advanced_Encryption_Standard#The_ShiftRows_step
+    """
     s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
     s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
     s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
 
 
 def inv_shift_rows(s):
+    """ Does the inverse transposition from the def `shift_rows()` 
+    for the last three lines of the matrix.
+
+    Faz o procedimento reverso da função `shift_rows()` para as últimas
+    três linhas da matriz.
+     
+    https://en.wikipedia.org/wiki/Advanced_Encryption_Standard#The_ShiftRows_step
+    """
     s[0][1], s[1][1], s[2][1], s[3][1] = s[3][1], s[0][1], s[1][1], s[2][1]
     s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
     s[0][3], s[1][3], s[2][3], s[3][3] = s[1][3], s[2][3], s[3][3], s[0][3]
 
 def add_round_key(s, k):
+    """ Does an XOR between the matrix bit and the key or subkey.
+
+    Faz o uso da porta lógica XOR entre cada bit da matriz e cada bit da chave ou subchave.
+
+    https://en.wikipedia.org/wiki/Advanced_Encryption_Standard#The_AddRoundKey 
+    """
     for i in range(4):
         for j in range(4):
             s[i][j] ^= k[i][j]
 
 
-# learned from https://web.archive.org/web/20100626212235/http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
-xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
+def xtime(a):
+    """ Learned from 
+    https://web.archive.org/web/20100626212235/http://cs.ucsb.edu/~koc/cs178/projects/JT/aes
+    """
+    if a & 0x80:
+        return ((a << 1) ^ 0x1B) & 0xFF
+    else:
+        return a << 1
 
 
 def mix_single_column(a):
-    # see Sec 4.1.2 in The Design of Rijndael
+    """ Mixes only one column
+    - See section 4.1.2 in the Design of Rijndael
+
+    Mistura uma única coluna com seu polinômio correspondente.
+    - Veja seção 4.1.2 do Design de Rijndael
+    """
     t = a[0] ^ a[1] ^ a[2] ^ a[3]
     u = a[0]
     a[0] ^= t ^ xtime(a[0] ^ a[1])
@@ -97,12 +151,20 @@ def mix_single_column(a):
 
 
 def mix_columns(s):
+    """ Mixes the columns
+    
+    Mistura as colunas """
     for i in range(4):
         mix_single_column(s[i])
 
 
 def inv_mix_columns(s):
-    # see Sec 4.1.3 in The Design of Rijndael
+    """ Unmixes the columns
+    - See section 4.1.3 in the Design of Rijndael
+
+    Desmistura as colunas
+    - Veja seção 4.1.3 do Design de Rijndael
+    """
     for i in range(4):
         u = xtime(xtime(s[i][0] ^ s[i][2]))
         v = xtime(xtime(s[i][1] ^ s[i][3]))
@@ -122,20 +184,29 @@ r_con = (
 )
 
 
-def bytes2matrix(text):
-    """ Converts a 16-byte array into a 4x4 matrix.  """
-    return [list(text[i:i+4]) for i in range(0, len(text), 4)]
+def bytes2matrix(byte_text):
+    """ Converts a 16-byte array into a 4x4 matrix.
+
+    Converte um array de 16 bytes em uma matrix 4x4. """
+    return [list(byte_text[i:i+4]) for i in range(0, len(byte_text), 4)]
 
 def matrix2bytes(matrix):
-    """ Converts a 4x4 matrix into a 16-byte array.  """
+    """ Converts a 4x4 matrix into a 16-byte array.
+
+    Converte uma matriz 4x4 em um array de 16 bytes. """
     return bytes(sum(matrix, []))
 
 def xor_bytes(a, b):
-    """ Returns a new byte array with the elements xor'ed. """
+    """ Returns a new byte array with the elements xor'ed.
+     
+    Retorna um novo array de bytes com os elementos passsados por uma 
+    porta lógica XOR. """
     return bytes(i^j for i, j in zip(a, b))
 
 def inc_bytes(a):
-    """ Returns a new byte array with the value increment by 1 """
+    """ Returns a new byte array with the value increment by 1.
+     
+    Retorna um novo array de bytes com o valor incrementado por 1. """
     out = list(a)
     for i in reversed(range(len(out))):
         if out[i] == 0xFF:
@@ -150,6 +221,10 @@ def pad(plaintext):
     Pads the given plaintext with PKCS#7 padding to a multiple of 16 bytes.
     Note that if the plaintext size is a multiple of 16,
     a whole block will be added.
+
+    Preenche o texto-plano recebido com PKCS#7 para um múltiplo de 16 bytes.
+    Note que se o tamanho do texto-plano for múltiplo de 16, um novo bloco
+    será adicionado.
     """
     padding_len = 16 - (len(plaintext) % 16)
     padding = bytes([padding_len] * padding_len)
@@ -159,6 +234,9 @@ def unpad(plaintext):
     """
     Removes a PKCS#7 padding, returning the unpadded text and ensuring the
     padding was correct.
+
+    Remove o preenchimento PKCS#7, retornando o texto sem preenchimento e
+    conderindo se o preenchimento estava correto.
     """
     padding_len = plaintext[-1]
     assert padding_len > 0
@@ -167,8 +245,11 @@ def unpad(plaintext):
     return message
 
 def split_blocks(message, block_size=16, require_padding=True):
-        assert len(message) % block_size == 0 or not require_padding
-        return [message[i:i+16] for i in range(0, len(message), block_size)]
+    """ Separates the message in blocks of 16 bytes.
+     
+    Separa a mensagem em blocos de 16 bytes. """
+    assert len(message) % block_size == 0 or not require_padding
+    return [message[i:i+16] for i in range(0, len(message), block_size)]
 
 
 class AES:
@@ -177,11 +258,20 @@ class AES:
 
     This is a raw implementation of AES, without key stretching or IV
     management. Unless you need that, please use `encrypt` and `decrypt`.
+
+    
+    Classe para a criptografia AES-128 com modo CBC e PKCS#7
+
+    Esta é uma implementação crua da AES, sem alongamento de chave ou Vetor
+    de Inicialização (ou IV em inglês). A menos que você precise disso,
+    por favor use `encrypt` e `decrypt`.
     """
     rounds_by_key_size = {16: 10, 24: 12, 32: 14}
     def __init__(self, master_key):
         """
         Initializes the object with a given key.
+
+        Inicializa o objeto com a chave dada.
         """
         assert len(master_key) in AES.rounds_by_key_size
         self.n_rounds = AES.rounds_by_key_size[len(master_key)]
@@ -190,41 +280,55 @@ class AES:
     def _expand_key(self, master_key):
         """
         Expands and returns a list of key matrices for the given master_key.
+
+        Expande e retorna uma lista das matrizes de chave de uma `master_key` dada.
         """
         # Initialize round keys with raw key material.
+        # Inicializa o arredondamento de chave com o material da chave bruta.
         key_columns = bytes2matrix(master_key)
         iteration_size = len(master_key) // 4
 
         i = 1
         while len(key_columns) < (self.n_rounds + 1) * 4:
             # Copy previous word.
+            # Copia a palavra anterior.
             word = list(key_columns[-1])
 
             # Perform schedule_core once every "row".
+            # Executa um `schedule_core` a cada "linha".
             if len(key_columns) % iteration_size == 0:
                 # Circular shift.
+                # Deslocamento circular.
                 word.append(word.pop(0))
                 # Map to S-BOX.
+                # Mapeia para a S-BOX.
                 word = [s_box[b] for b in word]
                 # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
+                # XOR com o primeiro byte de R-CON, já que outros bytes de R-CON são 0.
                 word[0] ^= r_con[i]
                 i += 1
             elif len(master_key) == 32 and len(key_columns) % iteration_size == 4:
-                # Run word through S-box in the fourth iteration when using a
-                # 256-bit key.
+                # Run word through S-box in the fourth iteration when using a 256-bit key.
+                # Passa a palavra pela S-box na quarta iteração quando usando chave de 256 bits.
                 word = [s_box[b] for b in word]
 
             # XOR with equivalent word from previous iteration.
+            # XOR com o equivalente à palavra da iteração anterior.
             word = xor_bytes(word, key_columns[-iteration_size])
             key_columns.append(word)
 
         # Group key words in 4x4 byte matrices.
+        # Agrupa palavra-chaves em matrizes de bytes 4x4.
         return [key_columns[4*i : 4*(i+1)] for i in range(len(key_columns) // 4)]
 
     def encrypt_block(self, plaintext):
         """
         Encrypts a single block of 16 byte long plaintext.
+
+        Encripta um único bloco de texto-plano de 16 bytes de comprimento.
         """
+        # Confirms if the text is 16 bytes long
+        # Confirma se o texto tem tamanho de 16 bytes
         assert len(plaintext) == 16
 
         plain_state = bytes2matrix(plaintext)
@@ -246,6 +350,8 @@ class AES:
     def decrypt_block(self, ciphertext):
         """
         Decrypts a single block of 16 byte long ciphertext.
+
+        Decripta um único bloco de texto-cifra de 16 bytes de comp.
         """
         assert len(ciphertext) == 16
 
@@ -269,6 +375,9 @@ class AES:
         """
         Encrypts `plaintext` using CBC mode and PKCS#7 padding, with the given
         initialization vector (iv).
+
+        Encripta o `plaintext` usando o modo CBC e preenchimento PKCS#7, com o
+        vetor de inicialização (IV) dado.
         """
         assert len(iv) == 16
 
@@ -278,6 +387,7 @@ class AES:
         previous = iv
         for plaintext_block in split_blocks(plaintext):
             # CBC mode encrypt: encrypt(plaintext_block XOR previous)
+            # Modo encriptar CBC: encrypt(bloco_textoplano XOR anterior)
             block = self.encrypt_block(xor_bytes(plaintext_block, previous))
             blocks.append(block)
             previous = block
@@ -288,6 +398,9 @@ class AES:
         """
         Decrypts `ciphertext` using CBC mode and PKCS#7 padding, with the given
         initialization vector (iv).
+
+        Decripta o `ciphertext` usando o modo CBC e preenchimento PKCS#7, com o
+        vetor de inicialização (IV) dado.
         """
         assert len(iv) == 16
 
@@ -295,6 +408,7 @@ class AES:
         previous = iv
         for ciphertext_block in split_blocks(ciphertext):
             # CBC mode decrypt: previous XOR decrypt(ciphertext)
+            # Modo decriptar CBC: anterior XOR decriptar(textocifra)
             blocks.append(xor_bytes(previous, self.decrypt_block(ciphertext_block)))
             previous = ciphertext_block
 
@@ -304,6 +418,9 @@ class AES:
         """
         Encrypts `plaintext` using PCBC mode and PKCS#7 padding, with the given
         initialization vector (iv).
+
+        Encripta o `plaintext` usando o modo PCBC e preenchimento PKCS#7, com o
+        vetor de inicialização (IV) dado.
         """
         assert len(iv) == 16
 
@@ -314,7 +431,10 @@ class AES:
         prev_plaintext = bytes(16)
         for plaintext_block in split_blocks(plaintext):
             # PCBC mode encrypt: encrypt(plaintext_block XOR (prev_ciphertext XOR prev_plaintext))
-            ciphertext_block = self.encrypt_block(xor_bytes(plaintext_block, xor_bytes(prev_ciphertext, prev_plaintext)))
+            # Modo encriptar PCBC: encriptar(bloco_textoplano XOR \
+            # (textocifra_anterior XOR textoplano_anterior))
+            ciphertext_block = self.encrypt_block(xor_bytes(plaintext_block, \
+                                                    xor_bytes(prev_ciphertext, prev_plaintext)))
             blocks.append(ciphertext_block)
             prev_ciphertext = ciphertext_block
             prev_plaintext = plaintext_block
@@ -325,6 +445,9 @@ class AES:
         """
         Decrypts `ciphertext` using PCBC mode and PKCS#7 padding, with the given
         initialization vector (iv).
+
+        Decripta o `ciphertext` usando o modo PCBC e preenchimento PKCS#7, com o
+        vetor de inicialização (IV) dado.
         """
         assert len(iv) == 16
 
@@ -333,7 +456,9 @@ class AES:
         prev_plaintext = bytes(16)
         for ciphertext_block in split_blocks(ciphertext):
             # PCBC mode decrypt: (prev_plaintext XOR prev_ciphertext) XOR decrypt(ciphertext_block)
-            plaintext_block = xor_bytes(xor_bytes(prev_ciphertext, prev_plaintext), self.decrypt_block(ciphertext_block))
+            # Modo decriptar PCBC: (textoplano_anterior XOR textocifra_anterior)
+            plaintext_block = xor_bytes(xor_bytes(prev_ciphertext, prev_plaintext), \
+                                        self.decrypt_block(ciphertext_block))
             blocks.append(plaintext_block)
             prev_ciphertext = ciphertext_block
             prev_plaintext = plaintext_block
@@ -343,6 +468,8 @@ class AES:
     def encrypt_cfb(self, plaintext, iv):
         """
         Encrypts `plaintext` with the given initialization vector (iv).
+
+        Encripta `plaintext` usando o modo CFB, com o vetor de inicialização (IV) dado.
         """
         assert len(iv) == 16
 
@@ -350,6 +477,7 @@ class AES:
         prev_ciphertext = iv
         for plaintext_block in split_blocks(plaintext, require_padding=False):
             # CFB mode encrypt: plaintext_block XOR encrypt(prev_ciphertext)
+            # Modo encriptar CFB: bloco_textoplano XOR encrypt(textocifra_anterior)
             ciphertext_block = xor_bytes(plaintext_block, self.encrypt_block(prev_ciphertext))
             blocks.append(ciphertext_block)
             prev_ciphertext = ciphertext_block
@@ -359,6 +487,8 @@ class AES:
     def decrypt_cfb(self, ciphertext, iv):
         """
         Decrypts `ciphertext` with the given initialization vector (iv).
+
+        Decripta `plaintext` usando o modo CFB, com o vetor de inicialização (IV) dado.
         """
         assert len(iv) == 16
 
@@ -375,6 +505,8 @@ class AES:
     def encrypt_ofb(self, plaintext, iv):
         """
         Encrypts `plaintext` using OFB mode initialization vector (iv).
+
+        Encripta `plaintext` usando o vetor de inicialização (IV) OFB.
         """
         assert len(iv) == 16
 
@@ -392,6 +524,8 @@ class AES:
     def decrypt_ofb(self, ciphertext, iv):
         """
         Decrypts `ciphertext` using OFB mode initialization vector (iv).
+
+        Decripta `plaintext` usando o vetor de inicialização (IV) OFB.
         """
         assert len(iv) == 16
 
@@ -409,6 +543,8 @@ class AES:
     def encrypt_ctr(self, plaintext, iv):
         """
         Encrypts `plaintext` using CTR mode with the given nounce/IV.
+
+        Encripta `plaintext` usando modo CTR com o nonce/IV. 
         """
         assert len(iv) == 16
 
@@ -425,6 +561,8 @@ class AES:
     def decrypt_ctr(self, ciphertext, iv):
         """
         Decrypts `ciphertext` using CTR mode with the given nounce/IV.
+
+        Decripta `plaintext` usando modo CTR com o nonce/IV. 
         """
         assert len(iv) == 16
 
@@ -454,6 +592,8 @@ def get_key_iv(password, salt, workload=100000):
     """
     Stretches the password and extracts an AES key, an HMAC key and an AES
     initialization vector.
+
+    Estica a senha e extrai uma chave AES, uma chave HMAC e um vetor de incialização AES.
     """
     stretched = pbkdf2_hmac('sha256', password, salt, workload, AES_KEY_SIZE + IV_SIZE + HMAC_KEY_SIZE)
     aes_key, stretched = stretched[:AES_KEY_SIZE], stretched[AES_KEY_SIZE:]
@@ -468,6 +608,12 @@ def encrypt(key, plaintext, workload=100000):
     and PBKDF2 to stretch the given key.
 
     The exact algorithm is specified in the module docstring.
+
+
+    Encripta o `plaintext` com `key` usando AES-128, HMAC para verificar integridade e
+    PBKDF2 para esticar a chave dada.
+
+    O algoritmo exato é especificado na documentação do módulo.
     """
     if isinstance(key, str):
         key = key.encode('utf-8')
@@ -489,10 +635,18 @@ def decrypt(key, ciphertext, workload=100000):
     and PBKDF2 to stretch the given key.
 
     The exact algorithm is specified in the module docstring.
-    """
 
+    
+    Encripta o `plaintext` com `key` usando AES-128, HMAC para verificar integridade e
+    PBKDF2 para esticar a chave dada.
+
+    O algoritmo exato é especificado na documentação do módulo.
+    """
+    # O textocifra deve ser feito de blocos completos de 16 bytes
     assert len(ciphertext) % 16 == 0, "Ciphertext must be made of full 16-byte blocks."
 
+    # O texto cifra deve ter ao menos 32 bytes.
+    # Para blocos unitários use `AES(key).decrypt_block(ciphertext)`
     assert len(ciphertext) >= 32, """
     Ciphertext must be at least 32 bytes long (16 byte salt + 16 byte block). To
     encrypt or decrypt single blocks use `AES(key).decrypt_block(ciphertext)`.
@@ -512,18 +666,26 @@ def decrypt(key, ciphertext, workload=100000):
 
 
 def benchmark():
+    """ Tests the code with a key and message.
+     
+    Testa o código com a chave e a mensagem. """
     key = b'P' * 16
     message = b'M' * 16
     aes = AES(key)
-    for i in range(30000):
+    for _ in range(30000):
         aes.encrypt_block(message)
 
-__all__ = [encrypt, decrypt, AES]
+__all__ = ["encrypt", "decrypt", "AES"]
 
 if __name__ == '__main__':
     import sys
-    write = lambda b: sys.stdout.buffer.write(b)
-    read = lambda: sys.stdin.buffer.read()
+    def write(b):
+        """ Writes """
+        return sys.stdout.buffer.write(b)
+
+    def read():
+        """ Reads """
+        return sys.stdin.buffer.read()
 
     if len(sys.argv) < 2:
         print('Usage: ./aes.py encrypt "key" "message"')
@@ -546,3 +708,4 @@ if __name__ == '__main__':
         print('Expected command "encrypt" or "decrypt" in first argument.')
 
     # encrypt('my secret key', b'0' * 1000000) # 1 MB encrypted in 20 seconds.
+encrypt("chave dahora", "Eu sou legal")
